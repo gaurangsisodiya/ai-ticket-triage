@@ -33,22 +33,20 @@ Each dataset includes clear knowledge base matches, real problems that need a hu
 ## Architecture
 
 ```mermaid
-flowchart LR
-    A[Customer submits form] --> B[TicketController::store]
-    B -->|save, status=new| DB[(MySQL)]
-    B -->|dispatch| Q[[Database queue]]
-    B -->|redirect instantly| P[Ticket page]
+flowchart TD
+    A[Customer submits ticket] --> B[TicketController]
+    B -->|save, status = new| DB[(MySQL)]
+    B -->|dispatch job,<br/>respond instantly| Q[[Database queue]]
 
     Q --> J[AnalyzeTicketJob<br/>rate limited]
-    J --> AN[TicketAnalyzer]
-    AN -->|categories, teams, KB<br/>from DB| PR[Build prompt]
-    PR --> LLM{{OpenAI-compatible<br/>/chat/completions}}
-    LLM --> V[Extract + validate JSON]
-    V -->|every call| LOG[(ai_logs)]
-    V -->|valid analysis or null| R[TicketRouter]
-    R -->|KB match AND confidence ≥ threshold<br/>AND not high urgency| AR[auto_resolved<br/>resolved_by=ai]
-    R -->|otherwise / failure| NR[needs_review<br/>+ team by rules]
-    NR --> H[Human: correct category,<br/>resolve, re-analyze]
+    J --> AN[TicketAnalyzer<br/>builds prompt from<br/>categories, teams, KB]
+    AN <-->|JSON| LLM{{OpenAI-compatible<br/>LLM API}}
+    AN -->|every call| LOG[(ai_logs)]
+    AN -->|validated analysis<br/>or null| R{TicketRouter}
+
+    R -->|KB match, confidence ≥ threshold,<br/>not high urgency, not angry| AR[Auto-resolved<br/>reply sent]
+    R -->|anything else,<br/>or analysis failed| NR[Needs review<br/>routed to a team]
+    NR --> H[Agent: correct category,<br/>resolve, re-analyze]
 ```
 
 ### Responsibilities
@@ -64,7 +62,7 @@ flowchart LR
 ### Ticket lifecycle
 
 ```
-new ──► processing ──┬──► auto_resolved   (KB match + confidence ≥ threshold + not high urgency)
+new ──► processing ──┬──► auto_resolved   (KB match + confidence ≥ threshold, not high urgency, not angry)
                      └──► needs_review ──► resolved (by a human)
 ```
 
