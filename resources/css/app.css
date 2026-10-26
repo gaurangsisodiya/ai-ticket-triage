@@ -3,67 +3,188 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
+/*
+ * "Civic records office" design tokens. Rationale, contrast ratios and usage rules: docs/DESIGN.md.
+ * Views should use these names (bg-paper, text-ink, border-rule, text-seal, ...), not Tailwind's
+ * zinc or blue palettes.
+ */
 @theme {
-    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --font-mono: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Consolas, monospace;
+    /* Type families: one job each */
+    --font-sans: 'Public Sans', ui-sans-serif, system-ui, 'Segoe UI', sans-serif;
+    --font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
 
-    /* One accent color for links, primary buttons and focus rings. Everything else is neutral. */
-    --color-brand-50: #eef4ff;
-    --color-brand-100: #dbe6fe;
-    --color-brand-500: #3b6fd8;
-    --color-brand-600: #2c5cc5;
-    --color-brand-700: #234a9f;
+    /* Paper and rules */
+    --color-paper: #f5f1e8;        /* page background, warm off-white */
+    --color-surface: #fbf9f4;      /* forms, panels, table bodies: a sheet lying on the desk */
+    --color-sunk: #ede7da;         /* table headers, code/log blocks, hover rows */
+    --color-rule: #ddd5c6;         /* hairline rules between rows and sections (decorative) */
+    --color-rule-strong: #9c917e;  /* rules under table headers and mastheads */
+    --color-field: #8a7f6c;        /* form field borders: 3.5:1 on paper, meets WCAG 1.4.11 */
+
+    /* Ink */
+    --color-ink: #1f1b16;          /* body text, 15.2:1 on paper */
+    --color-ink-2: #4d463c;        /* secondary text, 8.3:1 */
+    --color-ink-3: #6b6357;        /* meta text, captions, 5.3:1 (4.8:1 on sunk) */
+
+    /* Civic navy: links, primary actions, focus, active navigation */
+    --color-navy: #1e3a5f;         /* 10.2:1 on paper; white on navy 11.5:1 */
+    --color-navy-hover: #172d4a;
+    --color-navy-tint: #e4e9f0;
+
+    /* Status: muted, official. Each ships with a text label, never color alone. */
+    --color-ok: #2e6a3e;           /* resolved, auto-resolved, match */
+    --color-ok-tint: #e3ecdf;
+    --color-review: #865a08;       /* needs review, drafts (ochre) */
+    --color-review-tint: #f4e9cf;
+    --color-seal: #9e2a22;         /* high urgency, errors, misses (seal red) */
+    --color-seal-tint: #f4e1dc;
+    --color-slate: #4a5766;        /* new, analyzing */
+    --color-slate-tint: #e6e9ec;
+
+    /* Type scale (ratio ~1.2 from a 15px base; display sizes step up faster for serif figures) */
+    --text-xs: 0.75rem;            /* 12px  captions, eyebrow labels, mono meta */
+    --text-xs--line-height: 1rem;
+    --text-sm: 0.8125rem;          /* 13px  table meta, helper text */
+    --text-sm--line-height: 1.25rem;
+    --text-base: 0.9375rem;        /* 15px  body and table cells */
+    --text-base--line-height: 1.5rem;
+    --text-lg: 1.125rem;           /* 18px  section titles (serif) */
+    --text-lg--line-height: 1.625rem;
+    --text-xl: 1.375rem;           /* 22px  ticket subject */
+    --text-xl--line-height: 1.875rem;
+    --text-2xl: 1.75rem;           /* 28px  page titles (serif) */
+    --text-2xl--line-height: 2.25rem;
+    --text-3xl: 2.25rem;           /* 36px  secondary figures */
+    --text-3xl--line-height: 2.5rem;
+    --text-4xl: 3rem;              /* 48px  report numerals (serif) */
+    --text-4xl--line-height: 1;
+
+    /* Corners: paper is nearly square */
+    --radius-sm: 2px;
+    --radius-md: 3px;
+    --radius-lg: 4px;
+
+    /* Motion: quick and flat */
+    --default-transition-duration: 120ms;
+    --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
 @layer base {
     html {
-        font-feature-settings: 'cv11', 'ss01'; /* Inter: straight-sided digits, open shapes */
+        @apply bg-paper font-sans text-base text-ink antialiased;
+        font-variant-numeric: lining-nums;
+    }
+
+    ::selection {
+        @apply bg-navy-tint text-ink;
+    }
+
+    /* One visible focus style everywhere: a navy outline with a gap, 10:1 against paper. */
+    :focus-visible {
+        outline: 2px solid var(--color-navy);
+        outline-offset: 2px;
+    }
+
+    a {
+        text-underline-offset: 3px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+        }
     }
 }
 
-/* Small shared building blocks, so the views don't repeat long class lists. */
+/* ---- Building blocks (shared by all views) ---- */
+
+/* A sheet of paper on the desk: hairline border, no shadow. */
 @utility panel {
-    @apply rounded-md border border-zinc-200 bg-white;
+    @apply rounded-md border border-rule bg-surface;
 }
 
 @utility panel-header {
-    @apply flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3;
+    @apply flex items-center justify-between gap-3 border-b border-rule px-5 py-3.5;
 }
 
 @utility panel-title {
-    @apply text-[13px] font-semibold text-zinc-900;
+    @apply font-serif text-lg font-semibold text-ink;
+}
+
+/* Small uppercase label above a figure or section, like a form's printed field label. */
+@utility eyebrow {
+    @apply text-xs font-semibold tracking-[0.1em] text-ink-3 uppercase;
+}
+
+/* Case/docket reference, timestamps, model names. */
+@utility ref {
+    @apply font-mono text-xs tracking-wide text-ink-2;
+}
+
+/* Big report figures. */
+@utility numeral {
+    @apply font-serif font-semibold tracking-tight tabular-nums;
+}
+
+/* Dotted leader line between a label and its value, as in a ledger or table of contents. */
+@utility leader {
+    @apply mx-2 min-w-6 flex-1 translate-y-[-0.25em] border-b border-dotted border-rule-strong;
+}
+
+/* Outlined rubber-stamp mark. Color comes from the text color (text-ok, text-review, ...).
+   Used once, on the ticket detail page. */
+@utility stamp {
+    @apply inline-block -rotate-3 rounded-sm border-[3px] border-double px-3 py-1 font-sans text-sm font-bold tracking-[0.18em] uppercase;
+}
+
+/* Smaller stamp-like label for memo state (Sent / Draft). No rotation, single border. */
+@utility tag {
+    @apply inline-block rounded-sm border px-1.5 py-px text-xs font-semibold tracking-[0.08em] uppercase;
+}
+
+/* Typed record: prompts, raw responses, log lines. */
+@utility typed {
+    @apply rounded-sm border border-rule bg-sunk p-4 font-mono text-[0.8125rem] leading-relaxed text-ink;
 }
 
 @utility field {
-    @apply block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400
-        focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100;
+    @apply block w-full rounded-sm border border-field bg-surface px-3 py-2.5 text-base text-ink placeholder:text-ink-3
+        transition-colors focus:border-navy focus:outline-2 focus:outline-offset-0 focus:outline-navy;
 }
 
 @utility label {
-    @apply block text-[13px] font-medium text-zinc-700;
+    @apply block text-sm font-semibold text-ink;
 }
 
 @utility btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium whitespace-nowrap
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-100;
+    @apply inline-flex items-center justify-center gap-2 rounded-sm px-4 py-2 text-sm font-semibold whitespace-nowrap transition-colors;
 }
 
 @utility btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+    @apply btn bg-navy text-white hover:bg-navy-hover;
 }
 
 @utility btn-secondary {
-    @apply btn border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50;
+    @apply btn border border-field bg-surface text-ink hover:bg-sunk;
 }
 
 @utility btn-ghost {
-    @apply btn text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900;
+    @apply btn text-ink-2 underline-offset-4 hover:text-ink hover:underline;
+}
+
+/* Ledger tables: a strong rule under the header, hairlines between rows, generous rows. */
+@utility ledger-head {
+    @apply border-b-2 border-rule-strong;
 }
 
 @utility th {
-    @apply px-4 py-2 text-left text-xs font-medium text-zinc-500;
+    @apply px-3 py-3 text-left text-xs font-semibold tracking-[0.08em] text-ink-2 uppercase first:pl-4 last:pr-4;
 }
 
 @utility td {
-    @apply px-4 py-2.5 align-middle;
+    @apply px-3 py-3.5 align-middle first:pl-4 last:pr-4;
 }

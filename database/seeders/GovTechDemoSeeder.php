@@ -8,8 +8,16 @@ namespace Database\Seeders;
  * and public records requests.
  * Run with: php artisan db:seed --class=GovTechDemoSeeder
  *
- * The comment above each ticket is the outcome we EXPECT. It isn't stored; it lets
- * you compare the AI's decisions against a known answer during a demo.
+ * The comment above each ticket explains the expected outcome in words (auto-resolve or
+ * review, and why).
+ *
+ * The last two values of each ticket are its hand-labelled correct answer (evaluation set).
+ * Labelling rules for the hard cases, so the labels are consistent and can be challenged:
+ * - two issues in one ticket: labelled by the issue that blocks someone's work;
+ * - vague, feedback or legal questions with no product issue: "other", L1 Support;
+ * - platform-side failures (outages, data loss, wrong behaviour after an update): "bug",
+ *   even when they happen inside a specific module;
+ * - expected team = the team that should own it, including escalation of urgent tickets.
  */
 class GovTechDemoSeeder extends DemoSeeder
 {
@@ -153,71 +161,71 @@ class GovTechDemoSeeder extends DemoSeeder
             // --- Clear KB matches: expected auto_resolved ---
 
             // expect: login_sso, kb sso-login-troubleshooting
-            ['SSO error when logging in', "When I click 'Sign in with your organisation' I get 'User not assigned to application'. I'm a new hire in the Planning department.", 'jdavis@riverbendcity.gov'],
+            ['SSO error when logging in', "When I click 'Sign in with your organisation' I get 'User not assigned to application'. I'm a new hire in the Planning department.", 'jdavis@riverbendcity.gov', 'login_sso', 'L1 Support'],
             // expect: password_reset, kb password-reset
-            ['Password reset email never arrives', "I requested a password reset three times and nothing came through. Checked spam too.", 'clerk.assistant@pinevalleytownship.gov'],
+            ['Password reset email never arrives', "I requested a password reset three times and nothing came through. Checked spam too.", 'clerk.assistant@pinevalleytownship.gov', 'password_reset', 'L1 Support'],
             // expect: agendas_meetings, kb publish-meeting-agenda
-            ['Agenda packet will not compile', "When I click Compile agenda for the March 12 council meeting, it fails. One of the staff reports came from the county attorney.", 'cityclerk@lakeshorecity.gov'],
+            ['Agenda packet will not compile', "When I click Compile agenda for the March 12 council meeting, it fails. One of the staff reports came from the county attorney.", 'cityclerk@lakeshorecity.gov', 'agendas_meetings', 'L1 Support'],
             // expect: agendas_meetings, kb publish-meeting-agenda
-            ['Publish agenda at a specific time?', "We need the agenda to go live exactly 72 hours before the meeting for open meetings law. Can I set that up in advance?", 'deputy.clerk@oakridgecounty.gov'],
+            ['Publish agenda at a specific time?', "We need the agenda to go live exactly 72 hours before the meeting for open meetings law. Can I set that up in advance?", 'deputy.clerk@oakridgecounty.gov', 'agendas_meetings', 'L1 Support'],
             // expect: minutes_video, kb upload-minutes-and-video
-            ['Meeting video stuck on Processing', "I uploaded last night's 3-hour council meeting video about an hour ago and it still says Processing. Is something wrong?", 'av.tech@maplefordcity.gov'],
+            ['Meeting video stuck on Processing', "I uploaded last night's 3-hour council meeting video about an hour ago and it still says Processing. Is something wrong?", 'av.tech@maplefordcity.gov', 'minutes_video', 'L1 Support'],
             // expect: bulletins, kb bulletin-delivery-failures
-            ['Residents not getting road closure alerts', "Several residents called saying they didn't get yesterday's road closure bulletin. The delivery report shows some addresses as suppressed.", 'comms@harlowcounty.gov'],
+            ['Residents not getting road closure alerts', "Several residents called saying they didn't get yesterday's road closure bulletin. The delivery report shows some addresses as suppressed.", 'comms@harlowcounty.gov', 'bulletins', 'L1 Support'],
             // expect: bulletins, kb bulletin-delivery-failures
-            ['SMS bulletin not received', "Our emergency SMS went out but a lot of people say they never got the text. The message contained a bit.ly link.", 'oem@stonebridgecounty.gov'],
+            ['SMS bulletin not received', "Our emergency SMS went out but a lot of people say they never got the text. The message contained a bit.ly link.", 'oem@stonebridgecounty.gov', 'bulletins', 'L1 Support'],
             // expect: subscribers, kb subscriber-list-import
-            ['Subscriber import rejecting phone numbers', "Importing our newsletter list, every phone number is rejected. They're in the format (555) 123-4567.", 'pio@willowcreek.gov'],
+            ['Subscriber import rejecting phone numbers', "Importing our newsletter list, every phone number is rejected. They're in the format (555) 123-4567.", 'pio@willowcreek.gov', 'subscribers', 'L1 Support'],
             // expect: website_cms, kb cms-page-editing
-            ['Page changes not showing on website', "I published an update to the Parks hours page 10 minutes ago but the public site still shows the old hours.", 'parks.web@cedarfalls-city.gov'],
+            ['Page changes not showing on website', "I published an update to the Parks hours page 10 minutes ago but the public site still shows the old hours.", 'parks.web@cedarfalls-city.gov', 'website_cms', 'L1 Support'],
             // expect: website_cms, kb cms-page-editing
-            ["Can't publish page, says alt text required", "I'm trying to publish a news item with a photo and it won't let me. Something about alt text?", 'news@brookhavencounty.gov'],
+            ["Can't publish page, says alt text required", "I'm trying to publish a news item with a photo and it won't let me. Something about alt text?", 'news@brookhavencounty.gov', 'website_cms', 'L1 Support'],
             // expect: online_forms, kb form-submissions-not-arriving
-            ['Not receiving permit application emails', "We stopped getting emails for the building permit form after our permits coordinator retired last month.", 'building@eastonborough.gov'],
+            ['Not receiving permit application emails', "We stopped getting emails for the building permit form after our permits coordinator retired last month.", 'building@eastonborough.gov', 'online_forms', 'L1 Support'],
             // expect: records_requests, kb records-request-tracking
-            ['How to pause a records request deadline', "A requester asked for 'all emails about the park', which is way too broad. Can I stop the deadline clock while I ask them to narrow it?", 'records@fairviewcity.gov'],
+            ['How to pause a records request deadline', "A requester asked for 'all emails about the park', which is way too broad. Can I stop the deadline clock while I ask them to narrow it?", 'records@fairviewcity.gov', 'records_requests', 'L1 Support'],
             // expect: permissions, kb user-role-permissions
-            ["New staff member can't see Bulletins", "Our new communications assistant can log in but the Bulletins module is missing from her menu.", 'admin@glenwoodvillage.gov'],
+            ["New staff member can't see Bulletins", "Our new communications assistant can log in but the Bulletins module is missing from her menu.", 'admin@glenwoodvillage.gov', 'permissions', 'L1 Support'],
             // expect: permissions, kb user-role-permissions
-            ['Access denied on Public Works pages', "I can edit Parks pages but get Access denied on Public Works pages. My manager said I should have access to both.", 'web.editor@summitcounty-demo.gov'],
+            ['Access denied on Public Works pages', "I can edit Parks pages but get Access denied on Public Works pages. My manager said I should have access to both.", 'web.editor@summitcounty-demo.gov', 'permissions', 'L1 Support'],
 
             // --- Real problems with no KB answer: expected needs_review ---
 
             // expect: bug, high, Dev Team (public meeting portal down before a meeting)
-            ['URGENT: public meeting portal is down', "Our public meeting portal shows a blank white page. Council meets at 6pm tonight and residents can't see the agenda. This is a legal notice issue!", 'cityclerk@harborpointcity.gov'],
+            ['URGENT: public meeting portal is down', "Our public meeting portal shows a blank white page. Council meets at 6pm tonight and residents can't see the agenda. This is a legal notice issue!", 'cityclerk@harborpointcity.gov', 'bug', 'Dev Team'],
             // expect: bulletins/bug, high, Dev Team (platform-wide delivery failure)
-            ['No bulletins delivered since this morning', "None of our bulletins since 8am have been delivered. Delivery report shows 0 sent, 0 bounced, everything just queued. Includes a boil-water notice.", 'utilities@millbrookcity.gov'],
+            ['No bulletins delivered since this morning', "None of our bulletins since 8am have been delivered. Delivery report shows 0 sent, 0 bounced, everything just queued. Includes a boil-water notice.", 'utilities@millbrookcity.gov', 'bug', 'Dev Team'],
             // expect: bug, high, Dev Team (data loss)
-            ['Form submissions disappeared', "About two weeks of submissions for our pothole report form are gone from the Submissions list. They were there on Friday.", 'publicworks@ashlandcounty.gov'],
+            ['Form submissions disappeared', "About two weeks of submissions for our pothole report form are gone from the Submissions list. They were there on Friday.", 'publicworks@ashlandcounty.gov', 'bug', 'Dev Team'],
             // expect: bug, medium, Dev Team
-            ['Video and agenda timestamps out of sync', "Since the last update, clicking an agenda item in the video player jumps to the wrong part of the meeting, about 4 minutes off.", 'clerk@lindenvillage.gov'],
+            ['Video and agenda timestamps out of sync', "Since the last update, clicking an agenda item in the video player jumps to the wrong part of the meeting, about 4 minutes off.", 'clerk@lindenvillage.gov', 'bug', 'Dev Team'],
             // expect: account_billing, Billing (PO paperwork needs a human)
-            ['Need invoice with new PO number', "Our fiscal year started and finance issued a new purchase order number. We need the renewal invoice reissued with PO 2027-0412.", 'procurement@redfordcounty.gov'],
+            ['Need invoice with new PO number', "Our fiscal year started and finance issued a new purchase order number. We need the renewal invoice reissued with PO 2027-0412.", 'procurement@redfordcounty.gov', 'account_billing', 'Billing'],
             // expect: account_billing, Billing (contract change)
-            ['Add the Library to our contract', "The public library wants to start using bulletins. Can we add them to our existing contract and what would it cost?", 'it.director@westportcity.gov'],
+            ['Add the Library to our contract', "The public library wants to start using bulletins. Can we add them to our existing contract and what would it cost?", 'it.director@westportcity.gov', 'account_billing', 'Billing'],
             // expect: records_requests/bug, Dev Team (released redaction incident)
-            ['Redaction did not hide text', "We released documents for a records request and the requester says they can copy the text under the black redaction boxes. This is serious.", 'legal@claytoncounty.gov'],
+            ['Redaction did not hide text', "We released documents for a records request and the requester says they can copy the text under the black redaction boxes. This is serious.", 'legal@claytoncounty.gov', 'bug', 'Dev Team'],
             // expect: other, low (feature request)
-            ['Feature request: Spanish bulletins', "Can bulletins be sent automatically in Spanish to subscribers who prefer it? A lot of our residents would benefit.", 'equity@sanmarcos-demo.gov'],
+            ['Feature request: Spanish bulletins', "Can bulletins be sent automatically in Spanish to subscribers who prefer it? A lot of our residents would benefit.", 'equity@sanmarcos-demo.gov', 'other', 'L1 Support'],
 
             // --- Ambiguous / tricky: expected needs_review ---
 
             // vague: no module mentioned
-            ['Help', "It's broken again, same as last week. Need this fixed today.", 'frontdesk@townofhollis.gov'],
+            ['Help', "It's broken again, same as last week. Need this fixed today.", 'frontdesk@townofhollis.gov', 'other', 'L1 Support'],
             // written by a resident, not agency staff
-            ['I want to stop getting emails', "I'm a resident and keep getting emails from the city about council meetings. How do I make it stop?", 'bob.henderson1958@gmail.com'],
+            ['I want to stop getting emails', "I'm a resident and keep getting emails from the city about council meetings. How do I make it stop?", 'bob.henderson1958@gmail.com', 'subscribers', 'L1 Support'],
             // two unrelated issues
-            ['Agenda and login issue', "Two problems: our mayor can't log in, and the agenda for Tuesday is showing last month's items. Which do I report first?", 'clerk@townofgreenridge.gov'],
+            ['Agenda and login issue', "Two problems: our mayor can't log in, and the agenda for Tuesday is showing last month's items. Which do I report first?", 'clerk@townofgreenridge.gov', 'login_sso', 'L1 Support'],
             // sounds like a password problem, might be a compromised account
-            ['Someone sent a bulletin from my account', "A bulletin I didn't write went out to 12,000 subscribers from my account at 2am. I can't log in now.", 'comms.director@marlowcity.gov'],
+            ['Someone sent a bulletin from my account', "A bulletin I didn't write went out to 12,000 subscribers from my account at 2am. I can't log in now.", 'comms.director@marlowcity.gov', 'login_sso', 'Dev Team'],
             // policy/legal question, not a product how-to
-            ['Do we have to publish closed session minutes?', "Is CivicLink able to tell us whether closed session minutes legally need to be posted?", 'clerk@ferndalevillage.gov'],
+            ['Do we have to publish closed session minutes?', "Is CivicLink able to tell us whether closed session minutes legally need to be posted?", 'clerk@ferndalevillage.gov', 'other', 'L1 Support'],
             // angry, unspecified
-            ['Very disappointed', "Your platform made us look terrible at last night's meeting in front of the whole community. I expect a call from your manager.", 'citymanager@belmontcity.gov'],
+            ['Very disappointed', "Your platform made us look terrible at last night's meeting in front of the whole community. I expect a call from your manager.", 'citymanager@belmontcity.gov', 'other', 'L1 Support'],
             // positive feedback
-            ['Thanks for the new meeting portal', "Residents have been complimenting the new meeting portal. Great job, no issue to report!", 'clerk@silverlakecity.gov'],
+            ['Thanks for the new meeting portal', "Residents have been complimenting the new meeting portal. Great job, no issue to report!", 'clerk@silverlakecity.gov', 'other', 'L1 Support'],
             // non-English
-            ['Formulario no envía', "Los residentes dicen que el formulario de solicitud de reciclaje no se envía. Aparece un error al final.", 'servicios@villadelsol-demo.gov'],
+            ['Formulario no envía', "Los residentes dicen que el formulario de solicitud de reciclaje no se envía. Aparece un error al final.", 'servicios@villadelsol-demo.gov', 'online_forms', 'L1 Support'],
         ];
     }
 }

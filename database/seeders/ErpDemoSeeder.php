@@ -6,8 +6,16 @@ namespace Database\Seeders;
  * Demo dataset: "NovaERP", a fictional B2B ERP product.
  * Run with: php artisan db:seed --class=ErpDemoSeeder
  *
- * The comment above each ticket is the outcome we EXPECT. It isn't stored; it lets
- * you compare the AI's decisions against a known answer during a demo.
+ * The comment above each ticket explains the expected outcome in words (auto-resolve or
+ * review, and why).
+ *
+ * The last two values of each ticket are its hand-labelled correct answer (evaluation set).
+ * Labelling rules for the hard cases, so the labels are consistent and can be challenged:
+ * - two issues in one ticket: labelled by the issue that blocks someone's work;
+ * - vague, feedback or legal questions with no product issue: "other", L1 Support;
+ * - platform-side failures (outages, data loss, wrong behaviour after an update): "bug",
+ *   even when they happen inside a specific module;
+ * - expected team = the team that should own it, including escalation of urgent tickets.
  */
 class ErpDemoSeeder extends DemoSeeder
 {
@@ -148,71 +156,71 @@ class ErpDemoSeeder extends DemoSeeder
             // --- Clear KB matches: expected auto_resolved ---
 
             // expect: password_reset, kb password-reset
-            ['Forgot my password', "Hi, I forgot my password and can't get into NovaERP. How do I reset it?", 'anna.k@brightlogistics.com'],
+            ['Forgot my password', "Hi, I forgot my password and can't get into NovaERP. How do I reset it?", 'anna.k@brightlogistics.com', 'password_reset', 'L1 Support'],
             // expect: password_reset, kb password-reset
-            ['Password reset email not arriving', "I clicked 'Forgot password' twice but haven't received any email yet. It's been about 5 minutes.", 'mark.t@ferrotech.de'],
+            ['Password reset email not arriving', "I clicked 'Forgot password' twice but haven't received any email yet. It's been about 5 minutes.", 'mark.t@ferrotech.de', 'password_reset', 'L1 Support'],
             // expect: login_access, kb login-troubleshooting
-            ['Account locked', "I typed my password wrong a few times and now it says my account is locked. What do I do?", 'j.ramos@greenfieldfoods.com'],
+            ['Account locked', "I typed my password wrong a few times and now it says my account is locked. What do I do?", 'j.ramos@greenfieldfoods.com', 'login_access', 'L1 Support'],
             // expect: reporting, kb report-export
-            ['How to export sales report to Excel?', "Is there a way to get the monthly sales report into Excel? I need to send it to my manager.", 'priya.n@castlebuild.co.uk'],
+            ['How to export sales report to Excel?', "Is there a way to get the monthly sales report into Excel? I need to send it to my manager.", 'priya.n@castlebuild.co.uk', 'reporting', 'L1 Support'],
             // expect: reporting, kb report-export
-            ['Strange characters in exported CSV', "When I export the customer list to CSV and open it in Excel, all the German umlauts show up as weird symbols.", 'h.mueller@stahlwerk.de'],
+            ['Strange characters in exported CSV', "When I export the customer list to CSV and open it in Excel, all the German umlauts show up as weird symbols.", 'h.mueller@stahlwerk.de', 'reporting', 'L1 Support'],
             // expect: permissions, kb user-permissions
-            ['New employee cannot see Inventory module', "We added a new warehouse employee yesterday but she can't see the Inventory menu at all. Can you help?", 'ops@harbourfreight.com.au'],
+            ['New employee cannot see Inventory module', "We added a new warehouse employee yesterday but she can't see the Inventory menu at all. Can you help?", 'ops@harbourfreight.com.au', 'permissions', 'L1 Support'],
             // expect: permissions, kb user-permissions
-            ['Access denied on purchase order', "I get 'Access denied' when opening PO-10234, but my colleague can open it fine.", 'tomasz.w@polmetal.pl'],
+            ['Access denied on purchase order', "I get 'Access denied' when opening PO-10234, but my colleague can open it fine.", 'tomasz.w@polmetal.pl', 'permissions', 'L1 Support'],
             // expect: invoicing, kb invoice-errors
-            ['Wrong VAT rate on invoice', "Invoice INV-2291 was created with 19% VAT but this customer should be 7%. How do I fix it? It's already posted.", 'buchhaltung@kleinmoebel.de'],
+            ['Wrong VAT rate on invoice', "Invoice INV-2291 was created with 19% VAT but this customer should be 7%. How do I fix it? It's already posted.", 'buchhaltung@kleinmoebel.de', 'invoicing', 'L1 Support'],
             // expect: inventory, kb inventory-stock-mismatch
-            ['Available stock lower than on hand', "Product SKU-4410 shows 120 on hand but only 35 available. Where did the other 85 go?", 'stock@meridiantrading.com'],
+            ['Available stock lower than on hand', "Product SKU-4410 shows 120 on hand but only 35 available. Where did the other 85 go?", 'stock@meridiantrading.com', 'inventory', 'L1 Support'],
             // expect: inventory, kb inventory-stock-mismatch
-            ['Transferred stock not showing in Warehouse C', "We moved 200 units from Warehouse A to Warehouse C on Monday. A shows the decrease but C still shows zero.", 'logistics@kestrelfoods.com'],
+            ['Transferred stock not showing in Warehouse C', "We moved 200 units from Warehouse A to Warehouse C on Monday. A shows the decrease but C still shows zero.", 'logistics@kestrelfoods.com', 'inventory', 'L1 Support'],
             // expect: account_billing, kb subscription-and-billing
-            ['Add 5 more user licences', "We're hiring and need 5 more user seats. How do we add them and how will it be billed?", 'finance@luminahealth.com'],
+            ['Add 5 more user licences', "We're hiring and need 5 more user seats. How do we add them and how will it be billed?", 'finance@luminahealth.com', 'account_billing', 'Billing'],
             // expect: data_import, kb data-import-csv
-            ['Product import failing on dates', "Our product CSV import shows errors on every row in the 'valid_from' column. We use dd/mm/yyyy.", 'it@coastalsupply.com'],
+            ['Product import failing on dates', "Our product CSV import shows errors on every row in the 'valid_from' column. We use dd/mm/yyyy.", 'it@coastalsupply.com', 'data_import', 'L1 Support'],
             // expect: integration, kb api-integration-errors
-            ['API returning 429', "Our nightly sync script started getting HTTP 429 errors from the API halfway through. What's the limit?", 'dev@shopconnect.io'],
+            ['API returning 429', "Our nightly sync script started getting HTTP 429 errors from the API halfway through. What's the limit?", 'dev@shopconnect.io', 'integration', 'Dev Team'],
             // expect: integration, kb api-integration-errors
-            ['401 from API since this morning', "All our API calls return 401 Unauthorized since this morning. Nothing changed on our side.", 'integrations@vertexretail.com'],
+            ['401 from API since this morning', "All our API calls return 401 Unauthorized since this morning. Nothing changed on our side.", 'integrations@vertexretail.com', 'integration', 'Dev Team'],
 
             // --- Real problems with no KB answer: expected needs_review ---
 
             // expect: bug, high, Dev Team
-            ['URGENT: Invoices page shows error 500', "Since 9am the Invoices page returns 'Error 500' for our whole company. We cannot bill customers today. Please fix ASAP!!", 'cfo@maxwellindustries.com'],
+            ['URGENT: Invoices page shows error 500', "Since 9am the Invoices page returns 'Error 500' for our whole company. We cannot bill customers today. Please fix ASAP!!", 'cfo@maxwellindustries.com', 'bug', 'Dev Team'],
             // expect: bug/inventory, high, Dev Team (data corruption, not a how-to)
-            ['Stock levels doubled after update', "After last night's update, stock quantities in Warehouse B are doubled for about 40 products. This is causing wrong orders.", 'warehouse@delta-dist.nl'],
+            ['Stock levels doubled after update', "After last night's update, stock quantities in Warehouse B are doubled for about 40 products. This is causing wrong orders.", 'warehouse@delta-dist.nl', 'bug', 'Dev Team'],
             // expect: performance, high, Dev Team (company-wide, status page green)
-            ['System extremely slow for everyone', "NovaERP has been taking 30+ seconds per page for all 80 of our users since this morning. Status page says everything is fine.", 'it-lead@ridgewaymfg.com'],
+            ['System extremely slow for everyone', "NovaERP has been taking 30+ seconds per page for all 80 of our users since this morning. Status page says everything is fine.", 'it-lead@ridgewaymfg.com', 'performance', 'Dev Team'],
             // expect: account_billing, Billing (refund needs a human)
-            ['Charged twice this month', "Our credit card was charged twice for the October subscription. We need a refund for the duplicate payment.", 'accounts@sunpeakhotels.com'],
+            ['Charged twice this month', "Our credit card was charged twice for the October subscription. We need a refund for the duplicate payment.", 'accounts@sunpeakhotels.com', 'account_billing', 'Billing'],
             // expect: account_billing, Billing (cancellation needs a human)
-            ['Cancel our subscription', "We have decided to move to another system. Please cancel our contract and tell us how to export all our data.", 'director@oldmillbakery.co.uk'],
+            ['Cancel our subscription', "We have decided to move to another system. Please cancel our contract and tell us how to export all our data.", 'director@oldmillbakery.co.uk', 'account_billing', 'Billing'],
             // expect: bug, medium, Dev Team
-            ['PDF invoice layout broken', "The company logo on our PDF invoices is now overlapping the address block. It looked fine last week.", 'admin@bluepeakdesign.com'],
+            ['PDF invoice layout broken', "The company logo on our PDF invoices is now overlapping the address block. It looked fine last week.", 'admin@bluepeakdesign.com', 'bug', 'Dev Team'],
             // expect: integration, medium, Dev Team
-            ['Webhook not firing for new orders', "Our order.created webhook stopped sending anything 2 days ago. The delivery log is empty, not even failures.", 'tech@parcelhub.io'],
+            ['Webhook not firing for new orders', "Our order.created webhook stopped sending anything 2 days ago. The delivery log is empty, not even failures.", 'tech@parcelhub.io', 'integration', 'Dev Team'],
             // expect: other, low (feature request)
-            ['Feature request: dark mode', "Would love a dark mode option. Our night shift staff find the white screens very bright.", 'night.shift@24hlogistics.com'],
+            ['Feature request: dark mode', "Would love a dark mode option. Our night shift staff find the white screens very bright.", 'night.shift@24hlogistics.com', 'other', 'L1 Support'],
 
             // --- Ambiguous / tricky: expected needs_review ---
 
             // vague: no product area at all
-            ['Not working', "It's not working again. Please help.", 'user123@gmail.com'],
+            ['Not working', "It's not working again. Please help.", 'user123@gmail.com', 'other', 'L1 Support'],
             // vague and angry
-            ['Terrible', "This is the third time this week. Honestly considering switching vendors. Fix it.", 'k.brennan@brennanconstruction.com'],
+            ['Terrible', "This is the third time this week. Honestly considering switching vendors. Fix it.", 'k.brennan@brennanconstruction.com', 'other', 'L1 Support'],
             // two unrelated issues in one ticket
-            ['Login and invoice problem', "Two things: my colleague can't log in, and also the totals on invoice INV-3302 don't match the line items. Which one should I report first?", 'office@alpinetools.at'],
+            ['Login and invoice problem', "Two things: my colleague can't log in, and also the totals on invoice INV-3302 don't match the line items. Which one should I report first?", 'office@alpinetools.at', 'login_access', 'L1 Support'],
             // looks like password reset, is really a possible security incident
-            ['Did someone change my password?', "I got a 'your password was changed' email but I didn't change it. Now I can't log in.", 'r.singh@medivault.com'],
+            ['Did someone change my password?', "I got a 'your password was changed' email but I didn't change it. Now I can't log in.", 'r.singh@medivault.com', 'login_access', 'Dev Team'],
             // slow, but is it normal? not clearly covered
-            ['Reports a bit slow', "The Aged Receivables report takes about a minute to load. Is that normal?", 'ar@crestwoodlegal.com'],
+            ['Reports a bit slow', "The Aged Receivables report takes about a minute to load. Is that normal?", 'ar@crestwoodlegal.com', 'performance', 'Dev Team'],
             // product capability question, no KB article
-            ['Can we bill customers in USD?', "We're starting to sell to US clients. Can NovaERP create invoices in USD while our books stay in EUR?", 'sales@nordicoptics.se'],
+            ['Can we bill customers in USD?', "We're starting to sell to US clients. Can NovaERP create invoices in USD while our books stay in EUR?", 'sales@nordicoptics.se', 'invoicing', 'L1 Support'],
             // positive feedback, nothing to resolve
-            ['Thank you!', "Just wanted to say the new dashboard is great, our team loves it. No issue, just thanks!", 'emma.l@greenleafcafe.com'],
+            ['Thank you!', "Just wanted to say the new dashboard is great, our team loves it. No issue, just thanks!", 'emma.l@greenleafcafe.com', 'other', 'L1 Support'],
             // non-English
-            ['Problema con la exportación', "No puedo exportar el informe de ventas a PDF, el botón no hace nada. ¿Me pueden ayudar?", 'contabilidad@iberica-sa.es'],
+            ['Problema con la exportación', "No puedo exportar el informe de ventas a PDF, el botón no hace nada. ¿Me pueden ayudar?", 'contabilidad@iberica-sa.es', 'reporting', 'L1 Support'],
         ];
     }
 }

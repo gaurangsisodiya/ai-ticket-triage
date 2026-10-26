@@ -27,7 +27,13 @@ abstract class DemoSeeder extends Seeder
     /** @return array<int, array{slug: string, title: string, content: string}> */
     abstract protected function kbArticles(): array;
 
-    /** @return array<int, array{0: string, 1: string, 2: string}>  [subject, body, customer email] */
+    /**
+     * Each ticket also carries its hand-labelled correct answer (the evaluation set),
+     * so AI accuracy can be measured without waiting for agents to correct tickets.
+     *
+     * @return array<int, array{0: string, 1: string, 2: string, 3: string, 4: string}>
+     *         [subject, body, customer email, expected category slug, expected team name]
+     */
     abstract protected function tickets(): array;
 
     public function run(): void
@@ -53,12 +59,21 @@ abstract class DemoSeeder extends Seeder
         }
 
         // Tickets start unanalyzed. The AI fills in category, urgency, team, etc.
-        foreach ($this->tickets() as [$subject, $body, $email]) {
+        $categorySlugs = array_keys($this->categories());
+
+        foreach ($this->tickets() as [$subject, $body, $email, $expectedCategory, $expectedTeam]) {
+            // A typo in a label would silently count as an AI error, so refuse to seed it.
+            if (! in_array($expectedCategory, $categorySlugs, true) || ! isset($teamIds[$expectedTeam])) {
+                throw new \InvalidArgumentException("Unknown expected category or team for ticket \"{$subject}\".");
+            }
+
             Ticket::create([
                 'subject' => $subject,
                 'body' => $body,
                 'customer_email' => $email,
                 'status' => 'new',
+                'expected_category' => $expectedCategory,
+                'expected_team' => $expectedTeam,
             ]);
         }
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AiLog;
 use App\Models\Category;
 use App\Models\Ticket;
+use App\Services\Evaluation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -13,7 +14,7 @@ class DashboardController extends Controller
     /**
      * Handle the incoming request.
      */
-    public function __invoke(): View
+    public function __invoke(Evaluation $evaluation): View
     {
         // "Finished" = the AI has had its turn (whether it succeeded, failed or a human took over).
         $finished = Ticket::whereNotIn('status', ['new', 'processing'])->count();
@@ -35,11 +36,11 @@ class DashboardController extends Controller
             'finished' => $finished,
             'reviewQueue' => Ticket::where('status', 'needs_review')->count(),
             'awaitingAnalysis' => Ticket::whereIn('status', ['new', 'processing'])->count(),
-            'accuracy' => $this->percent($aiCategorized - $corrected, $aiCategorized),
             'corrected' => $corrected,
             'aiCategorized' => $aiCategorized,
             'aiCallSuccess' => $this->percent($aiCallsOk, $aiCalls),
             'aiCallsFailed' => $aiCalls - $aiCallsOk,
+            'evaluation' => $evaluation->run(),
 
             // Use the human correction when there is one, so the chart shows reality.
             'byCategory' => Ticket::query()

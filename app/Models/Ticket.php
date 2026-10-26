@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'subject', 'body', 'customer_email', 'status',
     'category', 'urgency', 'summary', 'sentiment', 'assigned_team',
     'kb_article_id', 'confidence', 'ai_reply', 'resolved_by', 'corrected_category',
+    'expected_category', 'expected_team',
 ])]
 class Ticket extends Model
 {

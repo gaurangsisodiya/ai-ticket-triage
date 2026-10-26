@@ -1,4 +1,8 @@
-<x-layout :title="$ticket->reference()">
+@php
+    $caseNo = 'CASE-' . str_pad((string) $ticket->id, 4, '0', STR_PAD_LEFT);
+@endphp
+
+<x-layout :title="$caseNo">
     {{-- While the AI is working, reload every 5 seconds. No JavaScript needed. --}}
     @if ($ticket->isAwaitingAnalysis())
         @push('head') <meta http-equiv="refresh" content="5"> @endpush
@@ -9,21 +13,35 @@
         $categoryName = fn (?string $slug) => $slug ? ($categories[$slug]->name ?? $slug) : null;
         $usualTeam = $categories->get($ticket->effectiveCategory() ?? '')?->team->name;
         $escalated = $usualTeam && $ticket->assigned_team && $usualTeam !== $ticket->assigned_team;
-        $initials = strtoupper(substr($ticket->customer_email, 0, 2));
+
+        // The one place the status appears on this page: as a rubber stamp.
+        [$stampLabel, $stampColor] = match ($ticket->status) {
+            'new' => ['New', 'text-slate'],
+            'processing' => ['Analyzing', 'text-slate'],
+            'auto_resolved' => ['Auto-resolved', 'text-ok'],
+            'needs_review' => ['Needs review', 'text-review'],
+            'resolved' => ['Resolved', 'text-ok'],
+            default => [ucfirst(str_replace('_', ' ', $ticket->status)), 'text-ink-2'],
+        };
     @endphp
 
-    <x-page-header :title="$ticket->subject">
-        <x-slot:breadcrumb>
-            <a href="{{ route('tickets.index') }}" class="hover:text-zinc-800">Tickets</a>
-            <span class="mx-1 text-zinc-300">/</span>
-            <span class="font-mono text-xs">{{ $ticket->reference() }}</span>
-        </x-slot:breadcrumb>
-        <x-slot:actions>
-            @unless ($ticket->isAwaitingAnalysis())
-                <form method="POST" action="{{ route('tickets.reanalyze', $ticket) }}">
-                    @csrf
-                    <button class="btn-secondary">Re-run analysis</button>
-                </form>
+    {{-- Case heading --}}
+    <header class="mb-8 border-b border-rule-strong pb-6">
+        <div class="mb-3 text-sm text-ink-3">
+            <a href="{{ route('tickets.index') }}" class="hover:text-ink hover:underline">Tickets</a>
+            <span class="mx-1.5" aria-hidden="true">/</span>
+            <x-case-ref :ticket="$ticket" />
+        </div>
+        <div class="flex flex-wrap items-start justify-between gap-x-8 gap-y-5">
+            <div class="min-w-0 max-w-3xl">
+                <p class="ref">{{ $caseNo }} · received {{ $ticket->created_at->format('d M Y, H:i') }}</p>
+                <h1 class="mt-2 font-serif text-2xl font-semibold break-words text-ink">{{ $ticket->subject }}</h1>
+            </div>
+            <p class="stamp mt-1 shrink-0 {{ $stampColor }}"><span class="sr-only">Status: </span>{{ $stampLabel }}</p>
+        </div>
+
+        @unless ($ticket->isAwaitingAnalysis())
+            <div class="mt-5 flex flex-wrap gap-3">
                 @if ($ticket->status === 'needs_review')
                     <form method="POST" action="{{ route('tickets.resolve', $ticket) }}">
                         @csrf
@@ -31,189 +49,218 @@
                         <button class="btn-primary">Mark as resolved</button>
                     </form>
                 @endif
-            @endunless
-        </x-slot:actions>
-    </x-page-header>
+                <form method="POST" action="{{ route('tickets.reanalyze', $ticket) }}">
+                    @csrf
+                    <button class="btn-secondary">Re-run analysis</button>
+                </form>
+            </div>
+        @endunless
+    </header>
 
     {{-- Why the ticket is in this state, in one sentence --}}
-    <div class="mb-6 flex items-start gap-2.5 rounded-md border border-zinc-200 bg-white px-3.5 py-2.5 text-[13px]">
-        <svg viewBox="0 0 20 20" class="mt-0.5 size-4 shrink-0 text-zinc-400" fill="currentColor" aria-hidden="true">
-            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.25v2.75a.75.75 0 001.5 0V10a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-        </svg>
-        <p><span class="font-medium text-zinc-900">Triage decision.</span> <span class="text-zinc-600">{{ $ticket->decisionReason() }}</span></p>
+    <div class="mb-10 border-l-4 border-navy bg-surface px-5 py-4">
+        <p class="eyebrow text-navy">Triage decision</p>
+        <p class="mt-1 text-base text-ink">{{ $ticket->decisionReason() }}</p>
     </div>
 
-    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        {{-- Conversation --}}
-        <div class="min-w-0 space-y-4">
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_19rem]">
+        <div class="min-w-0 space-y-8">
+            {{-- The customer's message, as filed --}}
             <article class="panel">
-                <header class="flex items-center gap-3 border-b border-zinc-100 px-4 py-3">
-                    <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-medium text-zinc-600">{{ $initials }}</span>
-                    <div class="min-w-0 text-[13px]">
-                        <p class="truncate font-medium text-zinc-900">{{ $ticket->customer_email }}</p>
-                        <p class="text-xs text-zinc-500" title="{{ $ticket->created_at->format('d M Y, H:i') }}">Customer · {{ $ticket->created_at->format('d M Y, H:i') }}</p>
+                <header class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule px-6 py-4">
+                    <div class="min-w-0">
+                        <p class="eyebrow">Customer's message</p>
+                        <p class="mt-1 truncate font-semibold text-ink">{{ $ticket->customer_email }}</p>
                     </div>
+                    <p class="ref">{{ $ticket->created_at->format('d M Y, H:i') }}</p>
                 </header>
-                <p class="px-4 py-4 leading-relaxed break-words whitespace-pre-line text-zinc-800">{{ $ticket->body }}</p>
+                <p class="px-6 py-5 text-base leading-relaxed break-words whitespace-pre-line text-ink">{{ $ticket->body }}</p>
             </article>
 
+            {{-- The AI's reply, set out as an internal memo --}}
             @if ($ticket->ai_reply)
                 @php $sent = $ticket->status === 'auto_resolved'; @endphp
-                <article @class(['panel', 'border-l-2 border-l-emerald-500' => $sent, 'border-l-2 border-l-amber-400 border-dashed' => ! $sent])>
-                    <header class="flex flex-wrap items-center gap-3 border-b border-zinc-100 px-4 py-3">
-                        <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white">
-                            <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                <rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7 9h10M7 13h6M7 17h3" stroke-linecap="round"/>
-                            </svg>
-                        </span>
-                        <div class="min-w-0 flex-1 text-[13px]">
-                            <p class="font-medium text-zinc-900">{{ $sent ? 'Reply sent to customer' : 'Suggested reply' }}</p>
-                            <p class="text-xs text-zinc-500">
-                                Written by the AI assistant{{ $ticket->kbArticle ? ' from "' . $ticket->kbArticle->title . '"' : '' }}
-                            </p>
+                <article @class(['panel', 'border-dashed border-field' => ! $sent])>
+                    <header class="border-b border-rule px-6 py-4">
+                        <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+                            <h2 class="panel-title">{{ $sent ? 'Reply sent to customer' : 'Suggested reply' }}</h2>
+                            <span @class(['tag', 'border-ok text-ok' => $sent, 'border-dashed border-review text-review' => ! $sent])>
+                                {{ $sent ? 'Sent automatically' : 'Draft · not sent' }}
+                            </span>
                         </div>
-                        <span @class(['rounded px-1.5 py-0.5 text-[11px] font-medium',
-                                      'bg-emerald-50 text-emerald-700' => $sent, 'bg-amber-50 text-amber-800' => ! $sent])>
-                            {{ $sent ? 'Sent automatically' : 'Draft · not sent' }}
-                        </span>
+                        <dl class="mt-3 grid grid-cols-[4.5rem_1fr] gap-x-3 gap-y-1 text-sm">
+                            <dt class="eyebrow pt-0.5">From</dt><dd class="text-ink">AI assistant</dd>
+                            <dt class="eyebrow pt-0.5">To</dt><dd class="break-all text-ink">{{ $ticket->customer_email }}</dd>
+                            <dt class="eyebrow pt-0.5">Re</dt><dd class="text-ink">{{ $ticket->subject }}</dd>
+                            <dt class="eyebrow pt-0.5">Source</dt>
+                            <dd class="text-ink">{{ $ticket->kbArticle ? 'KB: ' . $ticket->kbArticle->title : 'No knowledge base article' }}</dd>
+                        </dl>
                     </header>
-                    <p class="px-4 py-4 text-[13px] leading-relaxed whitespace-pre-line text-zinc-800">{{ $ticket->ai_reply }}</p>
+                    <p class="px-6 py-5 text-base leading-relaxed whitespace-pre-line text-ink">{{ $ticket->ai_reply }}</p>
                 </article>
             @elseif ($ticket->isAwaitingAnalysis())
-                <div class="panel flex items-center gap-2.5 px-4 py-3 text-[13px] text-zinc-600">
-                    <span class="size-2 animate-pulse rounded-full bg-sky-500"></span>
-                    The AI is analyzing this ticket. This page refreshes automatically.
+                <div class="border-l-4 border-slate bg-slate-tint px-5 py-4 text-base text-ink">
+                    The AI is reading this ticket now. This page refreshes on its own every few seconds.
                 </div>
             @endif
 
-            {{-- Audit trail: every LLM call for this ticket --}}
-            <section class="pt-4">
-                <h2 class="panel-title">LLM calls <span class="font-normal text-zinc-500">({{ $logs->count() }})</span></h2>
-                <p class="mt-0.5 text-xs text-zinc-500">The exact prompt and raw response of every call, for auditing and debugging.</p>
-                <div class="panel mt-3 divide-y divide-zinc-100">
-                    @forelse ($logs as $log)
-                        <details class="group">
-                            <summary class="flex cursor-pointer list-none items-center gap-3 px-4 py-2.5 text-[13px] hover:bg-zinc-50">
-                                <svg viewBox="0 0 20 20" class="size-3.5 shrink-0 text-zinc-400 transition-transform group-open:rotate-90" fill="currentColor" aria-hidden="true">
-                                    <path d="M7.2 4.2a.75.75 0 011.06 0l5.25 5.25a.75.75 0 010 1.06L8.26 15.8a.75.75 0 11-1.06-1.06L11.94 10 7.2 5.26a.75.75 0 010-1.06z"/>
-                                </svg>
-                                <span class="inline-flex items-center gap-1.5 {{ $log->parsed_ok ? 'text-zinc-700' : 'text-red-700' }}">
-                                    <span class="size-1.5 rounded-full {{ $log->parsed_ok ? 'bg-emerald-500' : 'bg-red-500' }}"></span>
-                                    {{ $log->parsed_ok ? 'Valid response' : 'Failed' }}
-                                </span>
-                                <span class="font-mono text-xs text-zinc-500">{{ $log->created_at->format('d M H:i:s') }}</span>
-                                @if ($log->error) <span class="min-w-0 truncate text-xs text-red-600">{{ $log->error }}</span> @endif
-                            </summary>
-                            @php
-                                $decoded = json_decode($log->raw_response ?? '', true);
-                                $pretty = is_array($decoded) ? json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : $log->raw_response;
-                            @endphp
-                            <div class="space-y-3 border-t border-zinc-100 bg-zinc-50/60 px-4 py-3">
-                                <div>
-                                    <p class="text-xs font-medium text-zinc-500">Raw response</p>
-                                    <pre class="mt-1 max-h-64 overflow-auto rounded border border-zinc-200 bg-white p-3 font-mono text-xs text-zinc-800">{{ $pretty ?? '(no response)' }}</pre>
-                                </div>
-                                <div>
-                                    <p class="text-xs font-medium text-zinc-500">Prompt</p>
-                                    <pre class="mt-1 max-h-64 overflow-auto rounded border border-zinc-200 bg-white p-3 font-mono text-xs whitespace-pre-wrap text-zinc-700">{{ $log->prompt }}</pre>
-                                </div>
-                            </div>
-                        </details>
-                    @empty
-                        <p class="px-4 py-4 text-[13px] text-zinc-500">No calls yet.</p>
-                    @endforelse
+            {{-- Audit trail: every LLM call for this ticket, as a typed record --}}
+            <section>
+                <div class="flex items-baseline justify-between border-b border-rule-strong pb-2">
+                    <h2 class="panel-title">Audit trail</h2>
+                    <span class="ref">{{ $logs->count() }} LLM {{ Str::plural('call', $logs->count()) }}</span>
                 </div>
+                <p class="mt-2 text-sm text-ink-3">The exact prompt and raw response of every call, for auditing and debugging.</p>
+
+                <ol class="mt-3 divide-y divide-rule border-b border-rule">
+                    @forelse ($logs as $log)
+                        <li>
+                            <details class="group">
+                                <summary class="flex cursor-pointer list-none flex-wrap items-baseline gap-x-4 gap-y-1 py-3 font-mono text-sm transition-colors hover:bg-sunk">
+                                    <span class="text-ink-3" aria-hidden="true"><span class="group-open:hidden">+</span><span class="hidden group-open:inline">−</span></span>
+                                    <span class="text-ink-2">{{ $log->created_at->format('d M Y H:i:s') }}</span>
+                                    <span @class(['font-medium uppercase', 'text-ok' => $log->parsed_ok, 'text-seal' => ! $log->parsed_ok])>
+                                        {{ $log->parsed_ok ? 'Valid response' : 'Failed' }}
+                                    </span>
+                                    @if ($log->error) <span class="min-w-0 flex-1 truncate text-seal">{{ $log->error }}</span> @endif
+                                </summary>
+                                @php
+                                    $decoded = json_decode($log->raw_response ?? '', true);
+                                    $pretty = is_array($decoded) ? json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : $log->raw_response;
+                                @endphp
+                                <div class="space-y-4 pb-5">
+                                    <div>
+                                        <p class="eyebrow mb-1.5">Raw response</p>
+                                        <pre class="typed max-h-72 overflow-auto">{{ $pretty ?? '(no response)' }}</pre>
+                                    </div>
+                                    <div>
+                                        <p class="eyebrow mb-1.5">Prompt</p>
+                                        <pre class="typed max-h-72 overflow-auto whitespace-pre-wrap">{{ $log->prompt }}</pre>
+                                    </div>
+                                </div>
+                            </details>
+                        </li>
+                    @empty
+                        <li class="py-5 text-base text-ink-3">No calls yet. The first one is made as soon as a queue worker picks up this ticket.</li>
+                    @endforelse
+                </ol>
             </section>
         </div>
 
-        {{-- Properties --}}
-        <aside class="space-y-4">
-            <section class="panel">
-                <div class="panel-header"><h2 class="panel-title">Details</h2></div>
-                <dl class="divide-y divide-zinc-100 text-[13px]">
-                    <div class="flex items-center justify-between gap-3 px-4 py-2.5">
-                        <dt class="text-zinc-500">Status</dt><dd><x-status :value="$ticket->status" /></dd>
+        {{-- Case details --}}
+        <aside class="space-y-8">
+            <section>
+                <h2 class="panel-title border-b border-rule-strong pb-2">Details</h2>
+                <dl class="divide-y divide-rule">
+                    <div class="flex items-center justify-between gap-3 py-3">
+                        <dt class="text-sm text-ink-3">Priority</dt><dd><x-priority :value="$ticket->urgency" /></dd>
                     </div>
-                    <div class="flex items-center justify-between gap-3 px-4 py-2.5">
-                        <dt class="text-zinc-500">Priority</dt><dd><x-priority :value="$ticket->urgency" /></dd>
-                    </div>
-                    <div class="flex items-start justify-between gap-3 px-4 py-2.5">
-                        <dt class="text-zinc-500">Team</dt>
-                        <dd class="text-right text-zinc-900">
+                    <div class="flex items-start justify-between gap-3 py-3">
+                        <dt class="text-sm text-ink-3">Team</dt>
+                        <dd class="text-right text-ink">
                             {{ $ticket->assigned_team ?? '—' }}
                             {{-- Shown when routing moved the ticket away from the category's usual team --}}
                             @if ($escalated)
-                                <span class="block text-xs text-zinc-500">Escalated from {{ $usualTeam }}</span>
+                                <span class="block text-sm text-seal">Escalated from {{ $usualTeam }}</span>
                             @endif
                         </dd>
                     </div>
-                    <div class="flex items-center justify-between gap-3 px-4 py-2.5">
-                        <dt class="text-zinc-500">Sentiment</dt>
-                        <dd @class(['text-zinc-900', 'font-medium text-red-700' => $ticket->sentiment === 'angry'])>{{ $ticket->sentiment ? ucfirst($ticket->sentiment) : '—' }}</dd>
+                    <div class="flex items-center justify-between gap-3 py-3">
+                        <dt class="text-sm text-ink-3">Sentiment</dt>
+                        <dd @class(['text-ink', 'font-semibold text-seal' => $ticket->sentiment === 'angry'])>{{ $ticket->sentiment ? ucfirst($ticket->sentiment) : '—' }}</dd>
                     </div>
-                    <div class="px-4 py-2.5">
+                    <div class="py-3">
                         <div class="flex items-center justify-between gap-3">
-                            <dt class="text-zinc-500">Confidence</dt>
-                            <dd class="tabular-nums text-zinc-900">{{ $ticket->confidence !== null ? round($ticket->confidence * 100) . '%' : '—' }}</dd>
+                            <dt class="text-sm text-ink-3">Confidence</dt>
+                            <dd class="font-mono text-sm tabular-nums text-ink">{{ $ticket->confidence !== null ? round($ticket->confidence * 100) . '%' : '—' }}</dd>
                         </div>
                         @if ($ticket->confidence !== null)
                             {{-- Bar with a tick at the auto-resolve threshold --}}
-                            <div class="relative mt-2 h-1.5 rounded-full bg-zinc-100" title="Auto-resolve threshold: {{ round($threshold * 100) }}%">
-                                <div class="h-1.5 rounded-full {{ $ticket->confidence >= $threshold ? 'bg-zinc-800' : 'bg-zinc-400' }}" style="width: {{ $ticket->confidence * 100 }}%"></div>
-                                <div class="absolute -top-1 h-3.5 w-px bg-zinc-500" style="left: {{ $threshold * 100 }}%"></div>
+                            <div class="relative mt-2.5 h-1 bg-sunk" title="Auto-resolve threshold: {{ round($threshold * 100) }}%" aria-hidden="true">
+                                <div class="h-1 {{ $ticket->confidence >= $threshold ? 'bg-navy' : 'bg-rule-strong' }}" style="width: {{ $ticket->confidence * 100 }}%"></div>
+                                <div class="absolute -top-1.5 h-4 w-0.5 bg-ink" style="left: {{ $threshold * 100 }}%"></div>
                             </div>
-                            <p class="mt-1 text-[11px] text-zinc-400">Threshold {{ round($threshold * 100) }}%</p>
+                            <p class="mt-1.5 text-xs text-ink-3">Auto-resolve threshold {{ round($threshold * 100) }}%</p>
                         @endif
                     </div>
-                    <div class="px-4 py-2.5">
-                        <dt class="text-zinc-500">Created</dt>
-                        <dd class="mt-0.5 text-zinc-900">{{ $ticket->created_at->format('d M Y, H:i') }}</dd>
+                    <div class="flex items-center justify-between gap-3 py-3">
+                        <dt class="text-sm text-ink-3">Created</dt>
+                        <dd class="ref text-ink">{{ $ticket->created_at->format('d M Y, H:i') }}</dd>
                     </div>
                 </dl>
             </section>
 
             @unless ($ticket->isAwaitingAnalysis())
-                <section class="panel">
-                    <div class="panel-header"><h2 class="panel-title">Category</h2></div>
-                    <div class="px-4 py-3 text-[13px]">
+                <section>
+                    <h2 class="panel-title border-b border-rule-strong pb-2">Category</h2>
+                    <div class="pt-3">
                         @if ($ticket->corrected_category)
-                            <p class="text-zinc-900">{{ $categoryName($ticket->corrected_category) }}</p>
-                            <p class="mt-0.5 text-xs text-zinc-500">Corrected by an agent. AI suggested <span class="line-through">{{ $categoryName($ticket->category) ?? 'none' }}</span>.</p>
+                            <p class="font-semibold text-ink">{{ $categoryName($ticket->corrected_category) }}</p>
+                            <p class="mt-1 text-sm text-ink-3">Corrected by an agent. AI suggested <span class="line-through">{{ $categoryName($ticket->category) ?? 'none' }}</span>.</p>
                         @else
-                            <p class="text-zinc-900">{{ $categoryName($ticket->category) ?? '—' }}</p>
-                            <p class="mt-0.5 text-xs text-zinc-500">Suggested by the AI.</p>
+                            <p class="font-semibold text-ink">{{ $categoryName($ticket->category) ?? '—' }}</p>
+                            <p class="mt-1 text-sm text-ink-3">Suggested by the AI.</p>
                         @endif
 
-                        <form method="POST" action="{{ route('tickets.correct-category', $ticket) }}" class="mt-3 flex gap-2">
+                        <form method="POST" action="{{ route('tickets.correct-category', $ticket) }}" class="mt-4">
                             @csrf
                             @method('PATCH')
-                            <select name="category" aria-label="Change category" class="field min-w-0 flex-1 py-1.5 text-[13px]">
-                                @foreach ($categories as $slug => $category)
-                                    <option value="{{ $slug }}" @selected($ticket->effectiveCategory() === $slug)>{{ $category->name }}</option>
-                                @endforeach
-                            </select>
-                            <button class="btn-secondary">Save</button>
+                            <label for="category" class="label">Change category</label>
+                            <div class="mt-1.5 flex gap-2">
+                                <select id="category" name="category" class="field min-w-0 flex-1 py-2">
+                                    @foreach ($categories as $slug => $category)
+                                        <option value="{{ $slug }}" @selected($ticket->effectiveCategory() === $slug)>{{ $category->name }}</option>
+                                    @endforeach
+                                </select>
+                                <button class="btn-secondary">Save</button>
+                            </div>
                         </form>
-                        @error('category') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
-                        <p class="mt-2 text-xs text-zinc-500">Changing it re-routes the ticket and counts as an AI error on the overview.</p>
+                        @error('category') <p class="mt-1.5 text-sm font-semibold text-seal">{{ $message }}</p> @enderror
+                        <p class="mt-2 text-sm text-ink-3">Changing it re-routes the ticket and counts as an AI error on the overview.</p>
                     </div>
                 </section>
             @endunless
 
+            @if ($ticket->expected_category && ! $ticket->isAwaitingAnalysis())
+                @php
+                    $aiTeam = $ticket->category ? app(App\Services\TicketRouter::class)->route($ticket->category, $ticket->urgency ?? 'low') : null;
+                    $rows = [
+                        ['Category', $categoryName($ticket->expected_category), $categoryName($ticket->category), $ticket->category === $ticket->expected_category],
+                        ['Team', $ticket->expected_team, $aiTeam, $aiTeam === $ticket->expected_team],
+                    ];
+                @endphp
+                <section>
+                    <div class="flex items-baseline justify-between border-b border-rule-strong pb-2">
+                        <h2 class="panel-title">Evaluation label</h2>
+                        <a href="{{ route('evaluation') }}" class="text-sm text-navy hover:underline">All results</a>
+                    </div>
+                    <dl class="divide-y divide-rule">
+                        @foreach ($rows as [$label, $expected, $actual, $ok])
+                            <div class="py-3">
+                                <dt class="flex items-center justify-between text-sm text-ink-3">
+                                    {{ $label }}
+                                    <span @class(['tag', 'border-ok text-ok' => $ok, 'border-seal text-seal' => ! $ok])>{{ $ok ? 'Match' : 'Miss' }}</span>
+                                </dt>
+                                <dd class="mt-1 text-ink">Expected: {{ $expected }}</dd>
+                                @unless ($ok) <dd class="text-seal">AI: {{ $actual ?? 'no answer' }}</dd> @endunless
+                            </div>
+                        @endforeach
+                    </dl>
+                </section>
+            @endif
+
             @if ($ticket->summary)
-                <section class="panel">
-                    <div class="panel-header"><h2 class="panel-title">AI summary</h2></div>
-                    <p class="px-4 py-3 text-[13px] leading-relaxed text-zinc-700">{{ $ticket->summary }}</p>
+                <section>
+                    <h2 class="panel-title border-b border-rule-strong pb-2">AI summary</h2>
+                    <p class="pt-3 text-base leading-relaxed text-ink-2">{{ $ticket->summary }}</p>
                 </section>
             @endif
 
             @if ($ticket->kbArticle)
-                <section class="panel">
-                    <div class="panel-header"><h2 class="panel-title">Matched article</h2></div>
-                    <div class="px-4 py-3 text-[13px]">
-                        <p class="font-medium text-zinc-900">{{ $ticket->kbArticle->title }}</p>
-                        <p class="mt-0.5 font-mono text-xs text-zinc-500">{{ $ticket->kbArticle->slug }}</p>
-                    </div>
+                <section>
+                    <h2 class="panel-title border-b border-rule-strong pb-2">Matched article</h2>
+                    <p class="pt-3 font-semibold text-ink">{{ $ticket->kbArticle->title }}</p>
+                    <p class="ref mt-1">{{ $ticket->kbArticle->slug }}</p>
                 </section>
             @endif
         </aside>

@@ -6,7 +6,7 @@ A Laravel app that uses an LLM to triage support tickets automatically:
 2. **Routing**: the ticket is assigned to a team (L1 Support, Dev Team, Billing) based on its category and urgency.
 3. **Auto-resolution**: if a knowledge base article answers the ticket and the model is confident enough, the AI drafts a reply and resolves the ticket. Everything else goes to a human review queue, with the AI's draft attached as a suggested reply when it has one.
 
-Humans stay in the loop. Reviewers can correct the AI's category, which re-routes the ticket and feeds an **AI accuracy** metric on the dashboard. Every LLM call is logged with its full prompt and raw response.
+Humans stay in the loop. Reviewers can correct the AI's category, which re-routes the ticket. AI accuracy is measured against an **evaluation set**: every seeded ticket carries a hand-labeled correct category and team. Every LLM call is logged with its full prompt and raw response.
 
 **Stack:** Laravel 13 · PHP 8.4 · MySQL/MariaDB · Blade + Tailwind CSS 4 · database queue · any OpenAI-compatible LLM API (Groq, Gemini, OpenAI, local Ollama).
 
@@ -16,7 +16,8 @@ Humans stay in the loop. Reviewers can correct the AI's category, which re-route
 
 | Page | What it shows |
 |---|---|
-| **Dashboard** (`/`) | AI resolution rate, review queue size, AI category accuracy, AI call success rate, tickets by category, tickets by team, most common human corrections |
+| **Dashboard** (`/`) | AI resolution rate, review queue size, category and team accuracy against the evaluation set ("X of Y analyzed"), LLM call success rate, tickets by category, tickets by team, most common human corrections |
+| **Evaluation** (`/evaluation`) | Every hand-labeled ticket where the AI's category or team differs from the expected answer: expected vs. AI category, expected vs. AI team, confidence, and a link to the ticket |
 | **Tickets** (`/tickets`) | All tickets with AI fields and status badges; filters for search, status, category, team and urgency; one-click review queue |
 | **Ticket detail** (`/tickets/{id}`) | The customer message, the AI analysis, a one-sentence explanation of the decision, the drafted reply, a confidence bar with the threshold marked, the AI call log (prompt + raw response), and human actions: **correct category**, **mark resolved**, **re-analyze** |
 | **Submit ticket** (`/tickets/create`) | Ticket form. It returns instantly; analysis runs on the queue and the detail page refreshes until it's done |
@@ -97,7 +98,9 @@ The model extracts structure from messy text (category, urgency, KB match, confi
 
 **Staying under rate limits.** Laravel's `RateLimited` job middleware holds jobs back when they would exceed `LLM_REQUESTS_PER_MINUTE`. Held-back jobs are released back onto the queue, so the job uses `retryUntil()` instead of a fixed `$tries`: waiting your turn isn't a failure.
 
-**Human corrections are data.** `category` keeps the AI's answer and `corrected_category` keeps the human's, which is what makes the accuracy metric and the "most common corrections" table possible. That table shows which category descriptions in the prompt need work.
+**AI output is tested, not trusted.** Each seeded ticket has `expected_category` and `expected_team`, decided by hand before the AI sees it (the labeling rules for ambiguous tickets are written in the seeders). The dashboard scores the AI against them and lists every miss. Team accuracy uses the AI's own routing (its category and urgency through the routing rules), so an agent re-routing a ticket can't hide an AI mistake. Tickets submitted through the form have no labels and are not scored.
+
+**Human corrections are data too.** `category` keeps the AI's answer and `corrected_category` keeps the human's. On live tickets, which have no labels, the "most common corrections" table shows which category descriptions in the prompt need work.
 
 **Every decision is explainable.** The detail page shows a one-sentence reason (`Ticket::decisionReason()`), the confidence against the threshold, whether routing escalated the ticket, and the exact prompt and response for each LLM call.
 
@@ -232,7 +235,7 @@ Model names change over time: providers retire models (this project lived throug
 php artisan test
 ```
 
-44 feature tests on an in-memory SQLite database. The LLM is faked with `Http::fake()`, so no key or network is needed.
+48 feature tests on an in-memory SQLite database. The LLM is faked with `Http::fake()`, so no key or network is needed.
 
 | Test file | Covers |
 |---|---|
@@ -241,7 +244,7 @@ php artisan test
 | `AnalyzeTicketJobTest` | Analysis saved and routed, failure → review, `failed()` never leaves a ticket in `processing` |
 | `TicketSubmissionTest` | Form, validation, job dispatched, and no AI work during the request |
 | `TicketPagesTest` | List filters (including the corrected category), detail page, correction re-routes and reopens, resolve, re-analyze |
-| `DashboardTest` | Every metric against a known dataset; empty dashboard (no division by zero) |
+| `DashboardTest` | Every metric against a known dataset; evaluation scoring (escalation, agent re-routes, unlabeled tickets, tickets waiting for re-analysis) and the Evaluation page; empty dashboard (no division by zero) |
 
 ---
 
@@ -250,14 +253,14 @@ php artisan test
 ```
 app/
   Console/Commands/      tickets:analyze, tickets:queue-pending
-  Http/Controllers/      TicketController, DashboardController
+  Http/Controllers/      TicketController, DashboardController, EvaluationController
   Http/Requests/         StoreTicketRequest
   Jobs/                  AnalyzeTicketJob
   Models/                Ticket, KbArticle, AiLog, Category, Team
-  Services/              TicketAnalyzer (LLM), TicketRouter (rules)
+  Services/              TicketAnalyzer (LLM), TicketRouter (rules), Evaluation (scores the AI against the labels)
 config/ai.php            all AI/routing settings
 database/seeders/        DemoSeeder (base), GovTechDemoSeeder, ErpDemoSeeder
-resources/views/         dashboard, tickets/{index,show,create}, components/{layout,badge,bar-list}
+resources/views/         dashboard, evaluation, tickets/{index,show,create}, components/{layout,badge,bar-list}
 tests/Feature/           see the table above
 ```
 
@@ -266,7 +269,7 @@ tests/Feature/           see the table above
 ## Known limitations
 
 - **No authentication.** Anyone can correct or resolve tickets, and corrections aren't attributed to a person.
-- **Accuracy is an upper bound.** Tickets nobody corrected are assumed correct.
+- **The evaluation set is small.** 30 labeled tickets per dataset, labeled by one person; a few labels are judgement calls. It catches regressions and patterns, not small differences in accuracy.
 - **LLM confidence is self-reported.** It's a useful signal, but it isn't calibrated against real outcomes.
 - **The whole knowledge base is sent with every request.** That's about 2,500 prompt tokens with 10 articles; it doesn't scale to hundreds of articles.
 - **Replies aren't actually emailed.** "Sent to customer" means the reply is stored as the resolution.
@@ -277,7 +280,7 @@ tests/Feature/           see the table above
 **Better AI decisions**
 - **Retrieval (RAG) for large knowledge bases:** embed the articles, retrieve the 3–5 most relevant per ticket, and send only those. This cuts tokens and cost and scales to thousands of articles.
 - **Strict structured outputs** (`response_format: json_schema`) on providers that support it, so the schema is enforced by the API rather than only validated afterwards.
-- **An evaluation harness:** turn each seeded ticket's expected outcome into a labelled test set and score prompt or model changes against it before deploying (accuracy, auto-resolve precision, false auto-resolutions).
+- **A bigger evaluation set and a CLI runner:** label more tickets (including expected auto-resolve vs. review), and add an artisan command that runs the set against a prompt or model change and fails if accuracy drops, so every change is measured before deploying.
 - **Confidence calibration:** use correction history to measure how often 0.9 really means right, then tune the threshold or set per-category thresholds.
 - **A feedback loop:** feed frequent corrections back into category descriptions or few-shot examples in the prompt.
 - **Per-category auto-resolve policy:** high-urgency tickets and angry customers are never auto-resolved today. Some categories (e.g. billing) could be excluded the same way, configured per category instead of hard-coded.
@@ -285,7 +288,6 @@ tests/Feature/           see the table above
 
 **Human workflow**
 - **Authentication and roles,** with an audit trail of who corrected or resolved what.
-- **"Confirm AI category" button,** so accuracy is measured on reviewed tickets only.
 - **Reviewer-editable replies** with "approve & send", and real email delivery through Laravel Mail.
 - **Live updates** (Laravel Reverb / websockets) instead of page refresh.
 

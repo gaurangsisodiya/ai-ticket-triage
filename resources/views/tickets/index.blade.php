@@ -15,30 +15,28 @@
     </x-page-header>
 
     {{-- Status tabs keep the other filters; the filter form is a plain GET form, so every view has a shareable URL. --}}
-    <div class="flex flex-wrap gap-x-5 border-b border-zinc-200">
+    <nav aria-label="Filter by status" class="flex flex-wrap gap-x-7 border-b border-rule">
         @foreach ($statusTabs as $value => $label)
             @php $active = ($currentStatus ?: null) === ($value ?: null); @endphp
             <a href="{{ route('tickets.index', array_filter([...$filters, 'status' => $value])) }}"
-               @class(['-mb-px shrink-0 border-b-2 pb-2.5 text-[13px]',
-                       'border-zinc-900 font-medium text-zinc-900' => $active,
-                       'border-transparent text-zinc-500 hover:text-zinc-800' => ! $active])>
+               @if ($active) aria-current="page" @endif
+               @class(['-mb-px border-b-2 pb-3 text-base transition-colors',
+                       'border-navy font-semibold text-ink' => $active,
+                       'border-transparent text-ink-2 hover:text-ink hover:underline' => ! $active])>
                 {{ $label }}
                 @if ($value === 'needs_review' && $reviewCount)
-                    <span class="ml-1 rounded bg-amber-100 px-1.5 text-xs tabular-nums text-amber-800">{{ $reviewCount }}</span>
+                    <span class="ref ml-1 text-review">({{ $reviewCount }})</span>
                 @endif
             </a>
         @endforeach
-    </div>
+    </nav>
 
-    <form method="GET" action="{{ route('tickets.index') }}" class="flex flex-wrap items-center gap-2 py-3">
+    <form method="GET" action="{{ route('tickets.index') }}" class="flex flex-wrap items-end gap-3 py-5">
         @if ($currentStatus) <input type="hidden" name="status" value="{{ $currentStatus }}"> @endif
 
-        <div class="relative w-full sm:w-64">
-            <svg viewBox="0 0 20 20" class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-zinc-400" fill="currentColor" aria-hidden="true">
-                <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.45 4.39l3.08 3.08a.75.75 0 11-1.06 1.06l-3.08-3.08A7 7 0 012 9z" clip-rule="evenodd"/>
-            </svg>
-            <input type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Search subject, email or summary" aria-label="Search"
-                   class="field py-1.5 pl-8 text-[13px]">
+        <div class="w-full sm:w-72">
+            <label for="q" class="eyebrow mb-1.5 block">Search</label>
+            <input type="search" id="q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Subject, email or summary" class="field h-10 py-0">
         </div>
 
         @php
@@ -49,81 +47,89 @@
             ];
         @endphp
         @foreach ($selects as $name => [$placeholder, $options])
-            <select name="{{ $name }}" aria-label="{{ $placeholder }}" class="field w-auto py-1.5 pr-8 text-[13px]">
-                <option value="">{{ $placeholder }}: any</option>
-                @foreach ($options as $value => $label)
-                    <option value="{{ $value }}" @selected(($filters[$name] ?? '') === (string) $value)>{{ $label }}</option>
-                @endforeach
-            </select>
+            <div>
+                <label for="filter-{{ $name }}" class="eyebrow mb-1.5 block">{{ $placeholder }}</label>
+                <select id="filter-{{ $name }}" name="{{ $name }}" class="field h-10 w-auto py-0 pr-9">
+                    <option value="">Any</option>
+                    @foreach ($options as $value => $label)
+                        <option value="{{ $value }}" @selected(($filters[$name] ?? '') === (string) $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
         @endforeach
 
-        <button class="btn-secondary">Apply</button>
+        <button class="btn-secondary h-10">Apply</button>
         @if (array_filter(\Illuminate\Support\Arr::except($filters, 'status')))
             <a href="{{ route('tickets.index', array_filter(['status' => $currentStatus])) }}" class="btn-ghost">Clear filters</a>
         @endif
-        <span class="ml-auto text-xs tabular-nums text-zinc-500">{{ $tickets->total() }} {{ Str::plural('ticket', $tickets->total()) }}</span>
+        <span class="ref ml-auto self-center">{{ $tickets->total() }} {{ Str::plural('ticket', $tickets->total()) }}</span>
     </form>
 
-    <div class="panel overflow-x-auto">
+    {{-- Ledger: strong rule under the header, hairlines between rows, generous row height --}}
+    <div class="overflow-x-auto border-b border-rule bg-surface">
         <table class="min-w-full">
-            <thead class="border-b border-zinc-200 bg-zinc-50/60">
+            <thead class="ledger-head bg-paper">
                 <tr>
-                    <th class="th w-24">ID</th>
+                    <th class="th w-28">Case no.</th>
                     <th class="th">Subject</th>
                     <th class="th">Status</th>
                     <th class="th">Category</th>
                     <th class="th">Priority</th>
                     <th class="th">Team</th>
                     <th class="th text-right" title="AI confidence in its knowledge base match">Confidence</th>
-                    <th class="th text-right">Created</th>
+                    <th class="th text-right">Received</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-zinc-100 text-[13px]">
+            <tbody class="divide-y divide-rule">
                 @forelse ($tickets as $ticket)
                     {{-- The subject link is stretched over the whole row, so any click on the row opens the ticket --}}
-                    <tr class="relative hover:bg-zinc-50">
-                        <td class="td font-mono text-xs whitespace-nowrap text-zinc-500">{{ $ticket->reference() }}</td>
-                        <td class="td max-w-sm">
-                            <a href="{{ route('tickets.show', $ticket) }}" class="block truncate font-medium text-zinc-900 after:absolute after:inset-0">
+                    <tr class="relative transition-colors hover:bg-sunk">
+                        <td class="td whitespace-nowrap"><x-case-ref :ticket="$ticket" /></td>
+                        <td class="td max-w-[16rem]">
+                            <a href="{{ route('tickets.show', $ticket) }}" class="block truncate font-semibold text-ink after:absolute after:inset-0 hover:underline">
                                 {{ $ticket->subject }}
                             </a>
-                            <p class="truncate text-xs text-zinc-500">
+                            <p class="truncate text-sm text-ink-3">
                                 {{ $ticket->customer_email }}
-                                @if ($ticket->sentiment === 'angry') · <span class="text-red-600">angry</span>
-                                @elseif ($ticket->sentiment === 'negative') · <span class="text-orange-600">frustrated</span> @endif
+                                @if ($ticket->sentiment === 'angry') · <span class="font-semibold text-seal">angry</span>
+                                @elseif ($ticket->sentiment === 'negative') · <span class="text-review">frustrated</span> @endif
                             </p>
                         </td>
                         <td class="td"><x-status :value="$ticket->status" /></td>
-                        <td class="td whitespace-nowrap text-zinc-700">
+                        <td class="td text-ink-2">
                             @if ($slug = $ticket->effectiveCategory())
                                 {{ $categories[$slug]->name ?? $slug }}
                                 @if ($ticket->corrected_category)
                                     <span title="Corrected by an agent (AI said: {{ $categories[$ticket->category]->name ?? $ticket->category ?? 'nothing' }})"
-                                          class="relative z-10 ml-1 rounded border border-zinc-200 px-1 text-[11px] text-zinc-500">edited</span>
+                                          class="tag relative z-10 ml-1 border-rule-strong text-ink-3">edited</span>
                                 @endif
                             @else
-                                <span class="text-zinc-300">—</span>
+                                <span class="text-ink-3">—</span>
                             @endif
                         </td>
                         <td class="td"><x-priority :value="$ticket->urgency" /></td>
-                        <td class="td whitespace-nowrap text-zinc-700">{{ $ticket->assigned_team ?? '—' }}</td>
-                        <td class="td text-right tabular-nums">
+                        <td class="td whitespace-nowrap text-ink-2">{{ $ticket->assigned_team ?? '—' }}</td>
+                        <td class="td text-right font-mono text-sm tabular-nums">
                             @if ($ticket->confidence !== null)
-                                <span class="{{ $ticket->confidence >= $threshold ? 'text-zinc-900' : 'text-zinc-400' }}">{{ round($ticket->confidence * 100) }}%</span>
+                                <span class="{{ $ticket->confidence >= $threshold ? 'text-ink' : 'text-ink-3' }}">{{ round($ticket->confidence * 100) }}%</span>
                             @else
-                                <span class="text-zinc-300">—</span>
+                                <span class="text-ink-3">—</span>
                             @endif
                         </td>
-                        <td class="td whitespace-nowrap text-right text-zinc-500" title="{{ $ticket->created_at->format('d M Y, H:i') }}">
-                            {{ $ticket->created_at->diffForHumans(short: true) }}
+                        <td class="td text-right whitespace-nowrap" title="{{ $ticket->created_at->format('d M Y, H:i') }}">
+                            <span class="ref text-ink-3">{{ $ticket->created_at->diffForHumans(short: true) }}</span>
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="px-4 py-12 text-center text-[13px] text-zinc-500">No tickets match these filters.</td></tr>
+                    <tr>
+                        <td colspan="8" class="px-4 py-16 text-center text-base text-ink-3">
+                            No tickets match these filters. Try clearing them, or pick another status above.
+                        </td>
+                    </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
 
-    <div class="mt-4">{{ $tickets->links() }}</div>
+    <div class="mt-6">{{ $tickets->links() }}</div>
 </x-layout>

@@ -34,8 +34,9 @@ class DashboardTest extends TestCase
         $this->get(route('dashboard'))
             ->assertOk()
             ->assertViewHas('resolutionRate', null)
-            ->assertViewHas('accuracy', null)
-            ->assertSee('No analyzed tickets yet.');
+            ->assertViewHas('evaluation', fn ($e) => $e['categoryAccuracy'] === null && $e['teamAccuracy'] === null)
+            ->assertSee('No analyzed tickets yet.')
+            ->assertSee('No labeled tickets');
     }
 
     public function test_metrics_are_calculated_correctly(): void
@@ -58,11 +59,70 @@ class DashboardTest extends TestCase
             ->assertViewHas('resolutionRate', 50)   // 2 resolved by AI / 4 processed
             ->assertViewHas('reviewQueue', 2)
             ->assertViewHas('awaitingAnalysis', 1)
-            ->assertViewHas('accuracy', 67)         // (3 AI-categorized - 1 corrected) / 3
+            ->assertViewHas('corrected', 1)          // 1 of 3 AI-categorized tickets corrected by an agent
+            ->assertViewHas('aiCategorized', 3)
             ->assertViewHas('aiCallSuccess', 50)
             // the corrected ticket counts under its corrected category
             ->assertViewHas('byCategory', fn ($data) => $data->all() === ['Password reset' => 2, 'Bug / error' => 1])
             ->assertViewHas('byTeam', fn ($data) => $data->all() === ['L1 Support' => 3, 'Dev Team' => 1])
             ->assertViewHas('topCorrections', fn ($rows) => $rows->first() === ['ai' => 'Password reset', 'human' => 'Bug / error', 'total' => 1]);
+    }
+
+    private function evaluationSet(): void
+    {
+        $labeled = fn (string $category, string $team, array $ai) => $this->ticket(
+            $ai + ['status' => 'needs_review', 'expected_category' => $category, 'expected_team' => $team]); // $ai wins on overlap
+
+        // 1: both right
+        $labeled('password_reset', 'L1 Support', ['subject' => 'Both right', 'category' => 'password_reset', 'urgency' => 'low']);
+        // 2: wrong category, but high urgency escalates password_reset from L1 to Dev Team, so the team is right
+        $labeled('bug', 'Dev Team', ['subject' => 'Wrong category', 'category' => 'password_reset', 'urgency' => 'high', 'confidence' => 0.62]);
+        // 3: right category; an agent later re-routed it to L1, but the AI's own routing (bug -> Dev Team) is what's scored
+        $labeled('bug', 'Dev Team', ['subject' => 'Agent re-routed', 'category' => 'bug', 'urgency' => 'medium', 'corrected_category' => 'password_reset', 'assigned_team' => 'L1 Support']);
+        // 4: right category, but high urgency escalates it to Dev Team while the label says L1
+        $labeled('password_reset', 'L1 Support', ['subject' => 'Wrong team', 'category' => 'password_reset', 'urgency' => 'high']);
+        // 5: labeled, never analyzed: not scored
+        $labeled('bug', 'Dev Team', ['subject' => 'Never analyzed', 'status' => 'new']);
+        // 6: labeled and queued for re-analysis: still holds an old (wrong) answer, which must not be scored
+        $labeled('bug', 'Dev Team', ['subject' => 'Waiting for re-analysis', 'status' => 'new', 'category' => 'password_reset', 'urgency' => 'low']);
+        // 7: analyzed but not labeled (a live ticket): not part of the evaluation
+        $this->ticket(['subject' => 'Live ticket', 'status' => 'needs_review', 'category' => 'bug', 'urgency' => 'low']);
+    }
+
+    public function test_accuracy_counts_only_labeled_and_analyzed_tickets(): void
+    {
+        $this->evaluationSet();
+
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertViewHas('evaluation', function ($e) {
+                return $e['labeled'] === 6
+                    && $e['analyzed'] === 4
+                    && $e['categoryAccuracy'] === 75   // tickets 1, 3, 4
+                    && $e['teamAccuracy'] === 75       // tickets 1, 2, 3
+                    && $e['misses']->pluck('ticket.id')->all() === [2, 4];
+            })
+            ->assertSee('4 of 6 analyzed');
+    }
+
+    public function test_evaluation_page_lists_only_mismatches(): void
+    {
+        $this->evaluationSet();
+
+        $this->get(route('evaluation'))
+            ->assertOk()
+            ->assertSee('Wrong category')
+            ->assertSee('62%')                       // confidence column
+            ->assertSee(route('tickets.show', 2))     // link to the ticket
+            ->assertSee('Wrong team')
+            ->assertDontSee('Both right')
+            ->assertDontSee('Agent re-routed')
+            ->assertDontSee('Waiting for re-analysis')
+            ->assertDontSee('Live ticket');
+    }
+
+    public function test_evaluation_page_without_labels(): void
+    {
+        $this->get(route('evaluation'))->assertOk()->assertSee('No labeled tickets.');
     }
 }
