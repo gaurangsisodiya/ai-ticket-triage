@@ -16,7 +16,7 @@ Humans stay in the loop. Reviewers can correct the AI's category, which re-route
 
 On the 30 hand-labeled GovTech tickets (model: openai/gpt-oss-120b via Groq):
 
-- 43% auto-resolved (13 of 30 labeled tickets)
+- 43% auto-resolved (13 of 30 labeled tickets only)
 - 80% category accuracy
 - 87% team-routing accuracy
 
@@ -27,6 +27,8 @@ Every miss is listed on the Evaluation page and was used to refine the prompt ru
 **Dashboard**: AI resolution rate, review queue and accuracy at a glance.
 
 ![Dashboard](docs/screenshots/dashboard.png)
+
+The live dashboard counts every ticket, including 6 submitted through the form for the demo (42%, 15 of 36); the Results above count only the 30 hand-labeled tickets.
 
 **Ticket detail**: a password-reset ticket auto-resolved from a knowledge base article, with the reply that was sent.
 
