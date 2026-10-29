@@ -1,5 +1,9 @@
 # AI Support Ticket Triage
 
+[![Watch the 75-second demo](https://img.youtube.com/vi/5g6PxKeHLTA/hqdefault.jpg)](https://youtu.be/5g6PxKeHLTA)
+
+▶ 75-second demo: a ticket auto-resolved, an outage escalated, a vague ticket sent to human review.
+
 A Laravel app that uses an LLM to triage support tickets automatically:
 
 1. **Case enrichment**: every ticket gets a category, urgency (low/medium/high), a one-line summary and the customer's sentiment.
@@ -7,6 +11,30 @@ A Laravel app that uses an LLM to triage support tickets automatically:
 3. **Auto-resolution**: if a knowledge base article answers the ticket and the model is confident enough, the AI drafts a reply and resolves the ticket. Everything else goes to a human review queue, with the AI's draft attached as a suggested reply when it has one.
 
 Humans stay in the loop. Reviewers can correct the AI's category, which re-routes the ticket. AI accuracy is measured against an **evaluation set**: every seeded ticket carries a hand-labeled correct category and team. Every LLM call is logged with its full prompt and raw response.
+
+## Results
+
+On the 30 hand-labeled GovTech tickets (model: openai/gpt-oss-120b via Groq):
+
+- 43% auto-resolved (13 of 30 labeled tickets)
+- 80% category accuracy
+- 87% team-routing accuracy
+
+Every miss is listed on the Evaluation page and was used to refine the prompt rules.
+
+## Screenshots
+
+**Dashboard**: AI resolution rate, review queue and accuracy at a glance.
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+**Ticket detail**: a password-reset ticket auto-resolved from a knowledge base article, with the reply that was sent.
+
+![Ticket detail](docs/screenshots/ticket-detail.png)
+
+**Evaluation**: accuracy against the hand-labeled tickets, with every mismatch listed.
+
+![Evaluation](docs/screenshots/evaluation.png)
 
 **Stack:** Laravel 13 · PHP 8.4 · MySQL/MariaDB · Blade + Tailwind CSS 4 · database queue · any OpenAI-compatible LLM API (Groq, Gemini, OpenAI, local Ollama).
 
@@ -118,7 +146,7 @@ The model extracts structure from messy text (category, urgency, KB match, confi
 ### Install
 
 ```bash
-git clone <repo-url> ai-ticket-triage
+git clone https://github.com/gaurangsisodiya/ai-ticket-triage.git ai-ticket-triage
 cd ai-ticket-triage
 
 composer install
@@ -297,3 +325,7 @@ tests/Feature/           see the table above
 - **PII redaction** before ticket text is sent to a third-party LLM.
 - **Ticket ingestion** from email (IMAP) or helpdesk tools (Zendesk, Freshdesk) via webhooks.
 - **Fallback provider:** switch to a second LLM provider automatically when the primary is down or rate-limited.
+
+## Author
+
+Gaurang Sisodiya · [GitHub](https://github.com/gaurangsisodiya) · [Trailhead](https://www.salesforce.com/trailblazer/gaurang-sisodiya)
