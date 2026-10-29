@@ -17,7 +17,8 @@ class TicketController extends Controller
 {
     public function index(Request $request): View
     {
-        $filters = $request->only(['q', 'status', 'category', 'team', 'urgency']);
+        // Drop non-string values: a hand-edited URL like ?status[]=x would otherwise crash the query and the view.
+        $filters = array_filter($request->only(['q', 'status', 'category', 'team', 'urgency']), 'is_string');
 
         // when() only adds a condition if the filter has a value, so an empty form shows everything.
         $tickets = Ticket::query()

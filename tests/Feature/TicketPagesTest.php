@@ -54,6 +54,13 @@ class TicketPagesTest extends TestCase
         $this->get(route('tickets.index', ['team' => 'L1 Support']))->assertSee('Resolved one')->assertDontSee('Broken page');
     }
 
+    public function test_list_ignores_array_filters_from_a_hand_edited_url(): void
+    {
+        $this->ticket();
+
+        $this->get('/tickets?q[]=x&status[]=x&category[]=x&team[]=x&urgency[]=x')->assertOk()->assertSee('Forgot password');
+    }
+
     public function test_category_filter_uses_the_human_correction(): void
     {
         $this->ticket(['subject' => 'Was misclassified', 'corrected_category' => 'bug']);
